@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Soft Stamp Maker Studio</title>
+    <!-- Google Fonts API (Bilingual Support: Typewriter, Sans, and Noto Serif Bengali loaded explicitly) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Cutive+Mono&family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Special+Elite&family=Xanh+Mono:ital@0;1&family=Oswald:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;700&family=Noto+Serif+Bengali:wght@400;700&display=swap" rel="stylesheet">
+    <!-- jsPDF CDN for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-element: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #475569;
+            --sidebar-width: 360px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-main); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Main Workspace Structure */
+        #app-container { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
+        
+        /* Left Sidebar - Navigation & Tabs */
+        .sidebar { width: var(--sidebar-width); background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+        .sidebar-tabs { display: flex; background: #111827; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .tab-btn { flex: 1; padding: 12px 8px; background: none; border: none; color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        .tab-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.02); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59,130,246,0.05); }
+
+        .tab-content { flex: 1; overflow-y: auto; padding: 20px; display: none; }
+        .tab-content.active { display: block; }
+
+        /* Viewport Canvas Center */
+        .viewport { flex: 1; display: flex; flex-direction: column; relative: true; background: #111827; position: relative; }
+        .canvas-toolbar { height: 48px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 5; }
+        .canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative; padding: 40px; }
+        
+        /* Grid Paper Pattern Background */
+        .grid-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-size: 20px 20px; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); pointer-events: none; }
+        .grid-bg.heavy { background-size: 100px 100px; background-image: linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.07) 1px, transparent 1px); }
+
+        canvas { background: white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); cursor: crosshair; max-width: 100%; max-height: 100%; display: block; transition: transform 0.1s ease-out; transform-origin: center center; }
+
+        /* UI Control Forms & Groups */
+        h3 { font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+        .input-row { display: flex; gap: 10px; }
+        .input-row .control-group { flex: 1; margin-bottom: 0; }
+        
+        input[type="text"], input[type="number"], select { width: 100%; background: var(--bg-element); border: 1px solid var(--border); border-radius: 6px; color: var(--text-main); padding: 8px 12px; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: var(--accent); }
+        
+        /* Range Slider Styling */
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; background: var(--bg-element); height: 6px; border-radius: 3px; outline: none; }
+        .slider-val { font-size: 12px; font-family: monospace; width: 36px; text-align: right; color: var(--text-muted); }
+
+        /* Color Picker Controls */
+        .color-palette { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        .color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--bg-surface); cursor: pointer; box-shadow: 0 0 0 1px var(--border); transition: transform 0.1s; }
+        .color-swatch:hover { transform: scale(1.15); }
+        .color-swatch.active { box-shadow: 0 0 0 2px var(--accent); }
+        .custom-color-container { display: flex; align-items: center; gap: 8px; background: var(--bg-element); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; }
+        .custom-color-container input[type="color"] { background: none; border: none; width: 32px; height: 24px; cursor: pointer; }
+
+        /* Template Cards Layout */
+        .template-filter { margin-bottom: 12px; }
+        .template-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .template-card { background: var(--bg-element); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 105px; position: relative; overflow: hidden; }
+        .template-card:hover { border-color: var(--accent); transform: translateY(-2px); background: rgba(255,255,255,0.03); }
+        .template-card span { font-size: 11px; font-weight: 500; color: var(--text-main); margin-top: 6px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .template-thumb-preview { width: 50px; height: 50px; border-radius: 50%; border: 1px dashed var(--text-muted); display: flex; align-items: center; justify-content: center; opacity: 0.6; }
+
+        /* Active Layer Items List */
+        .layers-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.1); margin-bottom: 12px; }
+        .layer-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-element); border: 1px solid transparent; border-radius: 4px; font-size: 12px; cursor: pointer; }
+        .layer-item:hover { border-color: var(--border); }
+        .layer-item.active { background: rgba(59,130,246,0.15); border-color: var(--accent); }
+        .layer-item-actions { display: flex; gap: 6px; }
+        .layer-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; }
+        .layer-btn:hover { color: #ef4444; }
+
+        /* Standard UI Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; cursor: pointer; transition: background 0.2s; width: 100%; margin-bottom: 8px; text-decoration: none; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--bg-element); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+        .btn-danger { background: #1e293b; color: #ef4444; border: 1px solid #7f1d1d; }
+        .btn-danger:hover { background: #7f1d1d; color: white; }
+        
+        .toolbar-group { display: flex; align-items: center; gap: 8px; }
+        .toolbar-btn { background: var(--bg-element); border: 1px solid var(--border); color: var(--text-main); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .toolbar-btn:hover { background: rgba(255,255,255,0.05); border-color: var(--text-muted); }
+        .toolbar-btn.active { background: var(--accent); border-color: var(--accent); }
+
+        /* Responsive Layout Overrides */
+        @media (max-width: 900px) {
+            #app-container { flex-direction: column-reverse; }
+            .sidebar { width: 100vw; height: 45vh; border-right: none; border-top: 1px solid var(--border); }
+            .canvas-container { height: 55vh; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- Left Navigation & Configuration Panels -->
+    <aside class="sidebar">
+        <nav class="sidebar-tabs">
+            <button class="tab-btn active" onclick="switchTab('templates')">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm3-4H7v-2h8v2zm3-4H7V7h11v2z"/></svg>
+                Presets
+            </button>
+            <button class="tab-btn" onclick="switchTab('layout')">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>
+                Geometry
+            </button>
+            <button class="tab-btn" onclick="switchTab('typography')">
+                <svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg>
+                Text
+            </button>
+            <button class="tab-btn" onclick="switchTab('effects')">
+                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+                Ink Wear
+            </button>
+            <button class="tab-btn" onclick="switchTab('export')">
+                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                Output
+            </button>
+        </nav>
+
+        <!-- Tab 1: Catalog of Templates -->
+        <div id="tab-templates" class="tab-content active">
+            <h3>Library Presets</h3>
+            <div class="control-group">
+                <label>Industry Filter</label>
+                <select id="template-category" onchange="populateTemplateGrid()">
+                    <option value="all">Show All Categories</option>
+                    <option value="business">Corporate & Business</option>
+                    <option value="legal">Legal & Notary</option>
+                    <option value="medical">Medical & Health</option>
+                    <option value="education">Academic & Grading</option>
+                    <option value="personal">Personal & Craft</option>
+                </select>
+            </div>
+            <div class="template-grid" id="template-container"></div>
+        </div>
+
+        <!-- Tab 2: Base Contours & Outer Shapes -->
+        <div id="tab-layout" class="tab-content">
+            <h3>Stamp Enclosure Geometry</h3>
+            <div class="control-group">
+                <label>Enclosure Type</label>
+                <select id="shape-select" onchange="updateState('shape', this.value)">
+                    <option value="circle">Circular Ring</option>
+                    <option value="oval">Elliptical / Oval</option>
+                    <option value="rectangle">Classic Rectangle</option>
+                    <option value="rounded_rect">Rounded Corner Rectangle</option>
+                    <option value="square">Proportional Square</option>
+                    <option value="triangle">Delta / Triangle</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Standard Real-World Dimensions</label>
+                <select id="size-preset" onchange="applySizePreset(this.value)">
+                    <option value="custom">Manual Dimensions</option>
+                    <option value="round-25">Ø 25 mm (Small Circular)</option>
+                    <option value="round-40" selected>Ø 40 mm (Standard Desk Seal)</option>
+                    <option value="round-50">Ø 50 mm (Large Notary Ring)</option>
+                    <option value="rect-3814">38 x 14 mm (Address Stamp)</option>
+                    <option value="rect-6040">60 x 40 mm (Large Shipping)</option>
+                </select>
+            </div>
+
+            <div class="input-row">
+                <div class="control-group">
+                    <label>Target Width (mm)</label>
+                    <input type="number" id="input-width" value="40" oninput="updateDimensions()">
+                </div>
+                <div class="control-group">
+                    <label>Target Height (mm)</label>
+                    <input type="number" id="input-height" value="40" oninput="updateDimensions()">
+                </div>
+            </div>
+
+            <h3>Rings & Framing Lines</h3>
+            <div class="control-group">
+                <label>Concentric Frame Rings</label>
+                <div class="slider-container">
+                    <input type="range" min="0" max="4" value="2" id="slider-rings" oninput="updateState('rings', parseInt(this.value))">
+                    <span class="slider-val" id="val-rings">2</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Primary Border Stroke Thickness</label>
+                <div class="slider-container">
+                    <input type="range" min="1" max="12" value="4" id="slider-borderThickness" oninput="updateState('borderThickness', parseInt(this.value))">
+                    <span class="slider-val" id="val-borderThickness">4</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Inter-Ring Step Spacing</label>
+                <div class="slider-container">
+                    <input type="range" min="2" max="20" value="6" id="slider-ringGap" oninput="updateState('ringGap', parseInt(this.value))">
+                    <span class="slider-val" id="val-ringGap">6</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Stroke Pattern Style</label>
+                <select id="border-style" onchange="updateState('borderStyle', this.value)">
+                    <option value="solid">Solid Profile Line</option>
+                    <option value="dashed">Dashed Segment Sequence</option>
+                    <option value="dotted">Dotted Interval Sequence</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Decorative Track Ornaments</label>
+                <select id="border-pattern" onchange="updateState('decorativePattern', this.value)">
+                    <option value="none">Clear / No Accents</option>
+                    <option value="dots">Beaded Circular Line</option>
+                    <option value="stars">Standard Five-Point Stars</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tab 3: Detailed Typography Vector Elements -->
+        <div id="tab-typography" class="tab-content">
+            <h3>Active Typographic Sub-layers</h3>
+            <div class="layers-list" id="layers-container"></div>
+            <button class="btn btn-secondary" onclick="addNewTextLayer()">+ Insert New Text Element</button>
+
+            <div id="text-editor-panel" style="display:none; margin-top:15px; border-top:1px dashed var(--border); padding-top:15px;">
+                <h3>Layer Attribute Inspector</h3>
+                <div class="control-group">
+                    <label>Inscribed Text / Content</label>
+                    <input type="text" id="layer-text-string" oninput="updateActiveLayer('text', this.value)">
+                </div>
+                <div class="control-group">
+                    <label>Typographic Family</label>
+                    <select id="layer-font-family" onchange="updateActiveLayer('fontFamily', this.value)">
+                        <optgroup label="Bilingual Bengali Script (বাংলা)">
+                            <option value="Noto Serif Bengali">Noto Serif Bengali (Unicode)</option>
+                        </optgroup>
+                        <optgroup label="Classic Typewriter / Distressed">
+                            <option value="Special Elite">Special Elite (Default)</option>
+                            <option value="Courier Prime">Courier Prime</option>
+                            <option value="Cutive Mono">Cutive Mono</option>
+                            <option value="Xanh Mono">Xanh Mono</option>
+                            <option value="IBM Plex Mono">IBM Plex Mono</option>
+                        </optgroup>
+                        <optgroup label="Modern / Functional Display">
+                            <option value="Inter">Inter Sans</option>
+                            <option value="Montserrat">Montserrat Bold</option>
+                            <option value="Oswald">Oswald Clean Impact</option>
+                            <option value="Playfair Display">Playfair Serif</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="input-row">
+                    <div class="control-group">
+                        <label>Size (pt)</label>
+                        <input type="number" id="layer-font-size" min="6" max="72" oninput="updateActiveLayer('fontSize', parseInt(this.value))">
+                    </div>
+                    <div class="control-group">
+                        <label>Tracking / Gap</label>
+                        <input type="number" id="layer-letter-spacing" min="-5" max="30" oninput="updateActiveLayer('letterSpacing', parseInt(this.value))">
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top:12px;">
+                    <label>Mapping Curvature</label>
+                    <select id="layer-layout-mode" onchange="updateActiveLayer('layoutMode', this.value); toggleCurveControls(this.value);">
+                        <option value="straight">Linear Horizontal Track</option>
+                        <option value="arc-top">Circular Arc Upper</option>
+                        <option value="arc-bottom">Circular Arc Lower</option>
+                    </select>
+                </div>
+
+                <div id="curve-controls-container" style="display:none;">
+                    <div class="control-group">
+                        <label>Arc Boundary Radius (px)</label>
+                        <div class="slider-container">
+                            <input type="range" min="30" max="200" value="100" id="slider-layer-radius" oninput="updateActiveLayer('radius', parseInt(this.value))">
+                            <span class="slider-val" id="val-layer-radius">100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Individual Text Rotation (Degrees)</label>
+                    <div class="slider-container">
+                        <input type="range" min="-180" max="180" value="0" id="slider-layer-rotation" oninput="updateActiveLayer('rotation', parseInt(this.value))">
+                        <span class="slider-val" id="val-layer-rotation">0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Transform Position Offsets</label>
+                    <div class="input-row">
+                        <input type="number" id="layer-offset-x" placeholder="X offset" oninput="updateActiveLayer('offsetX', parseInt(this.value))">
+                        <input type="number" id="layer-offset-y" placeholder="Y offset" oninput="updateActiveLayer('offsetY', parseInt(this.value))">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Physical Ink Bleed & Erosion Simulation -->
+        <div id="tab-effects" class="tab-content">
+            <h3>Ink & Rubber Degenerative Filters</h3>
+            <div class="control-group">
+                <label>Ink Color Tonality</label>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background:#000000;" onclick="selectGlobalColor('#000000')"></div>
+                    <div class="color-swatch" style="background:#ef4444;" onclick="selectGlobalColor('#ef4444')"></div>
+                    <div class="color-swatch" style="background:#2563eb;" onclick="selectGlobalColor('#2563eb')"></div>
+                    <div class="color-swatch" style="background:#16a34a;" onclick="selectGlobalColor('#16a34a')"></div>
+                    <div class="color-swatch" style="background:#7c3aed;" onclick="selectGlobalColor('#7c3aed')"></div>
+                </div>
+                <div class="custom-color-container">
+                    <input type="color" id="primary-color-input" value="#ef4444" oninput="selectGlobalColor(this.value)">
+                    <span style="font-size:12px; color:var(--text-muted);">Custom Hex Chromatic Spec</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Rubber Dynamic Wear / Erosion</label>
+                <div class="slider-container">
+                    <input type="range" min="0" max="100" value="35" id="slider-fx-distress" oninput="updateEffect('distress', parseInt(this.value))">
+                    <span class="slider-val" id="val-fx-distress">35</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Ink Absorption / Fluid Bleed</label>
+                <div class="slider-container">
+                    <input type="range" min="0" max="5" step="0.5" value="1" id="slider-fx-bleed" oninput="updateEffect('bleed', parseFloat(this.value))">
+                    <span class="slider-val" id="val-fx-bleed">1</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Applied Pressure Density</label>
+                <div class="slider-container">
+                    <input type="range" min="20" max="100" value="85" id="slider-fx-pressure" oninput="updateEffect('pressure', parseInt(this.value))">
+                    <span class="slider-val" id="val-fx-pressure">85</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Human Angular Deviation / Rotation</label>
+                <div class="slider-container">
+                    <input type="range" min="-15" max="15" value="0" id="slider-fx-rotation" oninput="updateEffect('rotation', parseInt(this.value))">
+                    <span class="slider-val" id="val-fx-rotation">0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Micro-Texture Density Structure</label>
+                <select id="fx-pattern" onchange="updateEffect('pattern', this.value)">
+                    <option value="subtle">Fine Fibrous Paper Grain</option>
+                    <option value="heavy">Coarse Granular Rubber Erosion</option>
+                    <option value="cracked">Fractured Dry Ink Crust</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-danger" onclick="resetToCleanVector()">Revert to Pristine Vector State</button>
+        </div>
+
+        <!-- Tab 5: Asset Export Core Pipeline -->
+        <div id="tab-export" class="tab-content">
+            <h3>Compile Finished Deliverables</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.4;">
+                Select your required production asset profile below. High-definition options render elements utilizing real-world spatial scales mapped to standard print resolutions.
+            </p>
+            
+            <button class="btn btn-primary" onclick="exportRaster('png')">Download Alpha Transparent PNG</button>
+            <button class="btn btn-secondary" onclick="exportRaster('jpeg')">Download White Flattened JPEG</button>
+            <button class="btn btn-secondary" onclick="exportPDF()">Download Print Dimension PDF (Standard 300DPI)</button>
+            <button class="btn btn-secondary" onclick="exportSVG()">Download Uncompressed SVG Vector Tree</button>
+            
+            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <button class="btn btn-secondary" onclick="triggerUndo()">↵ Step Backward (Undo)</button>
+                <button class="btn btn-secondary" onclick="triggerRedo()">↳ Step Forward (Redo)</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Live Composition Stage -->
+    <main class="viewport">
+        <header class="canvas-toolbar">
+            <div class="toolbar-group">
+                <span style="font-size:12px; font-weight:600; color:var(--text-muted);">Composition Canvas</span>
+            </div>
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="grid-toggle-btn" title="Toggle Grid Layout" onclick="toggleViewportGrid()">🌐</button>
+                <button class="toolbar-btn" id="guide-toggle-btn" title="Toggle Alignment Guides" onclick="toggleViewportGuides()">✛</button>
+                <div style="width:1px; height:20px; background:var(--border); margin:0 4px;"></div>
+                <button class="toolbar-btn" onclick="adjustZoom(-25)">-</button>
+                <span style="font-size:11px; font-family:monospace; min-width:35px; text-align:center;" id="zoom-factor-display">100%</span>
+                <button class="toolbar-btn" onclick="adjustZoom(25)">+</button>
+                <button class="btn btn-secondary" style="width:auto; margin:0; padding:4px 8px; font-size:11px;" onclick="fitToViewport()">Fit Center</button>
+            </div>
+        </header>
+        
+        <div class="canvas-container" id="stage-viewport-wrapper">
+            <div class="grid-bg" id="canvas-grid-underlay"></div>
+            <div class="grid-bg heavy" id="canvas-grid-underlay-heavy"></div>
+            <!-- Primary Live Interaction Matrix -->
+            <canvas id="primary-stamp-canvas" width="600" height="600"></canvas>
+        </div>
+    </main>
+</div>
+
+<script>
+    // System Engine Memory Matrix (Application Central State)
+    let stampState = {
+        width: 40,
+        height: 40,
+        shape: 'circle',
+        color: '#ef4444',
+        rings: 2,
+        borderThickness: 4,
+        ringGap: 6,
+        borderStyle: 'solid',
+        decorativePattern: 'dots',
+        zoom: 100,
+        showGrid: true,
+        showGuides: true,
+        effects: {
+            distress: 35,
+            bleed: 1.0,
+            pressure: 85,
+            rotation: -2,
+            pattern: 'subtle'
+        },
+        layers: [
+            { id: 1, text: "OFFICIAL NOTARY SEAL", fontFamily: "Special Elite", fontSize: 13, letterSpacing: 8, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 },
+            { id: 2, text: "★ STATE OF ILLINOIS ★", fontFamily: "Special Elite", fontSize: 12, letterSpacing: 6, layoutMode: "arc-bottom", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 },
+            { id: 3, text: "JOHN DOE", fontFamily: "Montserrat", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -10, rotation: 0 },
+            { id: 4, text: "COMMISSION EXPIRES 2029", fontFamily: "Courier Prime", fontSize: 9, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }
+        ],
+        activeLayerId: 3
+    };
+
+    // Global Execution References
+    let historyStack = [];
+    let historyIndex = -1;
+    let cachedNoisePatternCanvas = null;
+    let isDraggingElement = false;
+    let initialDragMouseX = 0, initialDragMouseY = 0;
+    let dragLayerInitialOffsetX = 0, dragLayerInitialOffsetY = 0;
+
+    // --- Core Master Template JSON Library Matrix (Exactly 52 Distinct Production-Ready Profiles) ---
+    const TEMPLATE_LIBRARY = [
+        // Category: Business (1-12)
+        { name: "PAID - Standard Office", category: "business", shape: "rectangle", width: 50, height: 25, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "PAID", fontFamily: "Montserrat", fontSize: 28, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -5, rotation: 0 }, { id: 2, text: "ACCOUNTS PAYABLE OFFICE", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 15, rotation: 0 }] },
+        { name: "CONFIDENTIAL - Corporate", category: "business", shape: "rectangle", width: 60, height: 28, rings: 1, borderThickness: 4, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "CONFIDENTIAL", fontFamily: "Oswald", fontSize: 26, letterSpacing: 4, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -4, rotation: 0 }, { id: 2, text: "DO NOT DUPLICATE ASSET", fontFamily: "IBM Plex Mono", fontSize: 9, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 16, rotation: 0 }] },
+        { name: "APPROVED - Management", category: "business", shape: "rounded_rect", width: 55, height: 30, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#2563eb", layers: [{ id: 1, text: "APPROVED", fontFamily: "Montserrat", fontSize: 24, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -6, rotation: 0 }, { id: 2, text: "EXECUTIVE REVIEW BOARD", fontFamily: "Inter", fontSize: 9, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 14, rotation: 0 }] },
+        { name: "URGENT - Action Required", category: "business", shape: "rectangle", width: 50, height: 22, rings: 2, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "URGENT!", fontFamily: "Oswald", fontSize: 24, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "ORIGINAL - Document Control", category: "business", shape: "rounded_rect", width: 52, height: 24, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "dashed", decorativePattern: "none", color: "#7c3aed", layers: [{ id: 1, text: "ORIGINAL", fontFamily: "Montserrat", fontSize: 22, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "COPY - Informational Only", category: "business", shape: "rectangle", width: 45, height: 20, rings: 1, borderThickness: 2, ringGap: 2, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "DUPLICATE COPY", fontFamily: "Courier Prime", fontSize: 18, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "VOID - Nullified Asset", category: "business", shape: "rectangle", width: 55, height: 28, rings: 1, borderThickness: 5, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "VOID", fontFamily: "Special Elite", fontSize: 36, letterSpacing: 5, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "SCANNED - Archive System", category: "business", shape: "rounded_rect", width: 48, height: 24, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "DIGITALLY SCANNED", fontFamily: "IBM Plex Mono", fontSize: 14, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -4, rotation: 0 }, { id: 2, text: "DOCUMENT ARCHIVE", fontFamily: "IBM Plex Mono", fontSize: 10, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "COMPLETED - Core Operations", category: "business", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 3, ringGap: 5, borderStyle: "solid", decorativePattern: "dots", color: "#16a34a", layers: [{ id: 1, text: "OPERATIONS COMPLETED", fontFamily: "Montserrat", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 105, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "★ GLOBAL HEADQUARTERS ★", fontFamily: "Inter", fontSize: 10, letterSpacing: 3, layoutMode: "arc-bottom", radius: 105, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "SUCCESS", fontFamily: "Oswald", fontSize: 18, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Corporate Seal - Round Inc", category: "business", shape: "circle", width: 42, height: 42, rings: 2, borderThickness: 2, ringGap: 6, borderStyle: "solid", decorativePattern: "stars", color: "#000000", layers: [{ id: 1, text: "ATLANTIC ENTERPRISES INC.", fontFamily: "Montserrat", fontSize: 12, letterSpacing: 5, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "DELAWARE CORPORATE CHARTER", fontFamily: "Inter", fontSize: 9, letterSpacing: 3, layoutMode: "arc-bottom", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "SEAL", fontFamily: "Playfair Display", fontSize: 20, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "SHIPPED - Warehouse Dock", category: "business", shape: "rectangle", width: 60, height: 35, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#7c3aed", layers: [{ id: 1, text: "SHIPPED LOGISTICS", fontFamily: "Oswald", fontSize: 22, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -8, rotation: 0 }, { id: 2, text: "CENTRAL LOADING BAY", fontFamily: "Courier Prime", fontSize: 11, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "POSTAGE DUE - Transit Hub", category: "business", shape: "rectangle", width: 50, height: 25, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "dashed", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "POSTAGE DUE", fontFamily: "Special Elite", fontSize: 20, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+
+        // Category: Legal & Notary (13-23)
+        { name: "Standard Notary Public", category: "legal", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 3, ringGap: 6, borderStyle: "solid", decorativePattern: "dots", color: "#ef4444", layers: [{ id: 1, text: "NOTARY PUBLIC STATEWIDE", fontFamily: "Special Elite", fontSize: 12, letterSpacing: 6, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "★ MY COMMISSION EXPIRES ★", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 4, layoutMode: "arc-bottom", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "OFFICIAL", fontFamily: "Montserrat", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -10, rotation: 0 }, { id: 4, text: "SEAL", fontFamily: "Montserrat", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "Attorney at Law - Juris", category: "legal", shape: "oval", width: 50, height: 35, rings: 2, borderThickness: 2, ringGap: 5, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "COUNSELLOR & ATTORNEY AT LAW", fontFamily: "Playfair Display", fontSize: 12, letterSpacing: 3, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "STATE BAR JURISDICTION", fontFamily: "Inter", fontSize: 10, letterSpacing: 2, layoutMode: "arc-bottom", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "LEX REGIT", fontFamily: "Playfair Display", fontSize: 18, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Certified True Copy", category: "legal", shape: "rectangle", width: 60, height: 30, rings: 2, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#2563eb", layers: [{ id: 1, text: "CERTIFIED TRUE COPY", fontFamily: "Montserrat", fontSize: 18, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -10, rotation: 0 }, { id: 2, text: "ORIGINAL VERIFIED ON FILE", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 10, rotation: 0 }] },
+        { name: "Apostille Supreme Seal", category: "legal", shape: "circle", width: 45, height: 45, rings: 3, borderThickness: 2, ringGap: 4, borderStyle: "solid", decorativePattern: "stars", color: "#7c3aed", layers: [{ id: 1, text: "APOSTILLE CONVENTION DE LA HAYE", fontFamily: "Inter", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 125, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "SUPREME COURT OF THE STATE", fontFamily: "Inter", fontSize: 11, letterSpacing: 4, layoutMode: "arc-bottom", radius: 125, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "RECORDED", fontFamily: "Oswald", fontSize: 18, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Witness Attestation Rect", category: "legal", shape: "rectangle", width: 55, height: 25, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "WITNESSED SIGNATURE ATTESTED", fontFamily: "Courier Prime", fontSize: 13, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Legal Document Archive", category: "legal", shape: "rounded_rect", width: 50, height: 30, rings: 1, borderThickness: 4, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#7c3aed", layers: [{ id: 1, text: "LEGAL ARCHIVE", fontFamily: "Montserrat", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -5, rotation: 0 }, { id: 2, text: "DO NOT DESTROY", fontFamily: "Special Elite", fontSize: 11, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "Court Registrar Intake", category: "legal", shape: "rectangle", width: 58, height: 26, rings: 1, borderThickness: 3, ringGap: 3, borderStyle: "dashed", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "FILED / COURT CLERK", fontFamily: "IBM Plex Mono", fontSize: 18, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Non-Disclosure Bound", category: "legal", shape: "rounded_rect", width: 60, height: 25, rings: 2, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "PROTECTED BY NDA LAWS", fontFamily: "Montserrat", fontSize: 15, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Escrow Account Clear", category: "legal", shape: "oval", width: 45, height: 32, rings: 1, borderThickness: 3, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "APPROVED ESCROW TRUSTEE", fontFamily: "Inter", fontSize: 11, letterSpacing: 2, layoutMode: "arc-top", radius: 100, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "FUNDS VERIFIED", fontFamily: "Oswald", fontSize: 14, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Patent Pending Seal", category: "legal", shape: "circle", width: 38, height: 38, rings: 2, borderThickness: 2, ringGap: 5, borderStyle: "solid", decorativePattern: "dots", color: "#2563eb", layers: [{ id: 1, text: "INTELLECTUAL PROPERTY OFFICE", fontFamily: "Inter", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 105, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "PATENT PENDING REF 9283", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Notarial Certificate Oval", category: "legal", shape: "oval", width: 55, height: 38, rings: 2, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "NOTARIAL CERTIFICATION SYSTEM", fontFamily: "Playfair Display", fontSize: 12, letterSpacing: 3, layoutMode: "arc-top", radius: 120, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "VALID WORLDWIDE", fontFamily: "Montserrat", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 4, rotation: 0 }] },
+
+        // Category: Medical & Health (24-33)
+        { name: "MD Registry License", category: "medical", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 3, ringGap: 6, borderStyle: "solid", decorativePattern: "dots", color: "#2563eb", layers: [{ id: 1, text: "MEDICAL REGISTRY BOARD", fontFamily: "Montserrat", fontSize: 12, letterSpacing: 5, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "LICENSED PRACTITIONER", fontFamily: "Inter", fontSize: 10, letterSpacing: 4, layoutMode: "arc-bottom", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "DR. MD", fontFamily: "Playfair Display", fontSize: 22, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Rx Prescription Authent", category: "medical", shape: "rectangle", width: 45, height: 22, rings: 1, borderThickness: 4, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#2563eb", layers: [{ id: 1, text: "Rx VALIDATED", fontFamily: "Oswald", fontSize: 20, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Hospital Clinic Intake", category: "medical", shape: "rounded_rect", width: 52, height: 28, rings: 1, borderThickness: 2, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "METROPOLITAN HOSPITAL", fontFamily: "Inter", fontSize: 14, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -5, rotation: 0 }, { id: 2, text: "ADMITTED & PROCESSED", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "Sterile Cleanroom Verified", category: "medical", shape: "circle", width: 38, height: 38, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "dashed", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "STERILITY BIO-ASSAY ASSURED", fontFamily: "IBM Plex Mono", fontSize: 11, letterSpacing: 3, layoutMode: "arc-top", radius: 100, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "CLASS 100 LAB", fontFamily: "IBM Plex Mono", fontSize: 14, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Biohazard Disposal Track", category: "medical", shape: "triangle", width: 45, height: 45, rings: 1, borderThickness: 4, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "BIO-HAZARD", fontFamily: "Oswald", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 8, rotation: 0 }] },
+        { name: "Certified Surgeon Seal", category: "medical", shape: "oval", width: 50, height: 35, rings: 2, borderThickness: 2, ringGap: 5, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "BOARD CERTIFIED SURGEON", fontFamily: "Montserrat", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "FELLOW OF THE COLLEGE", fontFamily: "Inter", fontSize: 9, letterSpacing: 3, layoutMode: "arc-bottom", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "SURGERY", fontFamily: "Playfair Display", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Dental Practice Round", category: "medical", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 2, ringGap: 6, borderStyle: "solid", decorativePattern: "dots", color: "#2563eb", layers: [{ id: 1, text: "FAMILY DENTAL CLINIC", fontFamily: "Inter", fontSize: 12, letterSpacing: 5, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "ORAL HEALTH EXCELLENCE", fontFamily: "Inter", fontSize: 10, letterSpacing: 4, layoutMode: "arc-bottom", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "DENTISTRY", fontFamily: "Montserrat", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Pharmacy Dispensed Node", category: "medical", shape: "rectangle", width: 50, height: 20, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "PHARMACY DISPENSED", fontFamily: "Courier Prime", fontSize: 14, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Radiology Digital Clear", category: "medical", shape: "rounded_rect", width: 54, height: 26, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#7c3aed", layers: [{ id: 1, text: "IMAGING CLEARED", fontFamily: "Oswald", fontSize: 18, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -4, rotation: 0 }, { id: 2, text: "RADIOLOGY GROUP", fontFamily: "IBM Plex Mono", fontSize: 9, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 14, rotation: 0 }] },
+        { name: "Blood Bank Screened", category: "medical", shape: "circle", width: 42, height: 42, rings: 2, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "stars", color: "#ef4444", layers: [{ id: 1, text: "CENTRAL BLOOD REPOSITORY", fontFamily: "Montserrat", fontSize: 11, letterSpacing: 5, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "SCREENED & VERIFIED", fontFamily: "Oswald", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+
+        // Category: Academic & Grading (34-43)
+        { name: "Teacher Grading - A+", category: "education", shape: "circle", width: 38, height: 38, rings: 1, borderThickness: 4, ringGap: 4, borderStyle: "solid", decorativePattern: "stars", color: "#ef4444", layers: [{ id: 1, text: "EXCELLENT WORK DONE!", fontFamily: "Special Elite", fontSize: 13, letterSpacing: 4, layoutMode: "arc-top", radius: 100, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "A+", fontFamily: "Montserrat", fontSize: 36, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 8, rotation: 0 }] },
+        { name: "University Library Stem", category: "education", shape: "oval", width: 52, height: 36, rings: 2, borderThickness: 2, ringGap: 5, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "UNIVERSITY GENERAL LIBRARY", fontFamily: "Playfair Display", fontSize: 12, letterSpacing: 3, layoutMode: "arc-top", radius: 120, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "EX LIBRIS ASSET COLLECTION", fontFamily: "Courier Prime", fontSize: 9, letterSpacing: 2, layoutMode: "arc-bottom", radius: 120, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 3, text: "BOOK FUND", fontFamily: "Playfair Display", fontSize: 15, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Parent Review Signature", category: "education", shape: "rectangle", width: 58, height: 24, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "dashed", decorativePattern: "none", color: "#7c3aed", layers: [{ id: 1, text: "PARENT SIGNATURE REQUIRED", fontFamily: "Courier Prime", fontSize: 13, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Passed Examination Core", category: "education", shape: "rounded_rect", width: 50, height: 26, rings: 2, borderThickness: 3, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "EXAM PASSED", fontFamily: "Oswald", fontSize: 20, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -3, rotation: 0 }, { id: 2, text: "ACADEMIC TESTING DEPT", fontFamily: "Inter", fontSize: 9, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 15, rotation: 0 }] },
+        { name: "Dean Endorsed Seal", category: "education", shape: "circle", width: 42, height: 42, rings: 3, borderThickness: 2, ringGap: 5, borderStyle: "dots", color: "#000000", layers: [{ id: 1, text: "OFFICE OF THE ACADEMIC DEAN", fontFamily: "Playfair Display", fontSize: 11, letterSpacing: 5, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "ENDORSED & RECORDED", fontFamily: "Montserrat", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Science Lab Approved", category: "education", shape: "rounded_rect", width: 52, height: 24, rings: 1, borderThickness: 2, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#2563eb", layers: [{ id: 1, text: "CHEMISTRY LAB APPROVED", fontFamily: "IBM Plex Mono", fontSize: 13, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Late Submission Fine", category: "education", shape: "rectangle", width: 48, height: 22, rings: 1, borderThickness: 4, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "LATE ENTRY", fontFamily: "Special Elite", fontSize: 22, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Admissions Office Accepted", category: "education", shape: "oval", width: 50, height: 32, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "OFFICE OF GENERAL ADMISSIONS", fontFamily: "Inter", fontSize: 11, letterSpacing: 2, layoutMode: "arc-top", radius: 105, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "ACCEPTED", fontFamily: "Montserrat", fontSize: 18, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Archival Research Group", category: "education", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 2, ringGap: 6, borderStyle: "solid", decorativePattern: "stars", color: "#7c3aed", layers: [{ id: 1, text: "HISTORICAL RESEARCH INSTITUTE", fontFamily: "Playfair Display", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "VERIFIED SOURCE", fontFamily: "Courier Prime", fontSize: 12, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "School District Board", category: "education", shape: "circle", width: 44, height: 44, rings: 2, borderThickness: 3, ringGap: 5, borderStyle: "solid", decorativePattern: "dots", color: "#000000", layers: [{ id: 1, text: "PUBLIC SCHOOL DISTRICT 101", fontFamily: "Montserrat", fontSize: 12, letterSpacing: 5, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "OFFICIAL TRANSACTION", fontFamily: "Inter", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+
+        // Category: Personal & Decorative (44-52)
+        { name: "From Library Of - ExLibris", category: "personal", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 3, ringGap: 6, borderStyle: "solid", decorativePattern: "dots", color: "#7c3aed", layers: [{ id: 1, text: "FROM THE LIBRARY OF COLLECTION", fontFamily: "Playfair Display", fontSize: 11, letterSpacing: 5, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "EX LIBRIS", fontFamily: "Playfair Display", fontSize: 24, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Handmade Craft Boutique", category: "personal", shape: "oval", width: 55, height: 36, rings: 1, borderThickness: 2, ringGap: 4, borderStyle: "dashed", decorativePattern: "none", color: "#16a34a", layers: [{ id: 1, text: "HANDMADE WITH ORGANIC LOVE", fontFamily: "Special Elite", fontSize: 12, letterSpacing: 4, layoutMode: "arc-top", radius: 120, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "100% ARTISAN", fontFamily: "Cutive Mono", fontSize: 16, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 4, rotation: 0 }] },
+        { name: "Save The Date Wedding", category: "personal", shape: "circle", width: 42, height: 42, rings: 1, borderThickness: 2, ringGap: 5, borderStyle: "solid", decorativePattern: "dots", color: "#7c3aed", layers: [{ id: 1, text: "SAVE THE DATE CELEBRATION", fontFamily: "Montserrat", fontSize: 11, letterSpacing: 6, layoutMode: "arc-top", radius: 115, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "MARK & EMILY", fontFamily: "Playfair Display", fontSize: 20, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -2, rotation: 0 }, { id: 3, text: "OCTOBER 2026", fontFamily: "Inter", fontSize: 10, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 15, rotation: 0 }] },
+        { name: "Kitchen Culinary Homemade", category: "personal", shape: "circle", width: 40, height: 40, rings: 2, borderThickness: 2, ringGap: 6, borderStyle: "solid", decorativePattern: "stars", color: "#ef4444", layers: [{ id: 1, text: "FROM THE KITCHEN OF JANE", fontFamily: "Special Elite", fontSize: 12, letterSpacing: 5, layoutMode: "arc-top", radius: 110, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "FRESH & HOMEMADE", fontFamily: "Special Elite", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Geographic Coordinates", category: "personal", shape: "rounded_rect", width: 50, height: 26, rings: 1, borderThickness: 3, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "EXPLORATION CO.", fontFamily: "Oswald", fontSize: 16, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -5, rotation: 0 }, { id: 2, text: "41.8781° N, 87.6298° W", fontFamily: "IBM Plex Mono", fontSize: 10, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 14, rotation: 0 }] },
+        { name: "Coffee Roasters Profile", category: "personal", shape: "circle", width: 38, height: 38, rings: 2, borderThickness: 3, ringGap: 5, borderStyle: "solid", decorativePattern: "dots", color: "#000000", layers: [{ id: 1, text: "ARTISANAL COFFEE ROASTERS", fontFamily: "Montserrat", fontSize: 11, letterSpacing: 4, layoutMode: "arc-top", radius: 105, offsetX: 0, offsetY: 0, rotation: 0 }, { id: 2, text: "BATCH 01", fontFamily: "Oswald", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 5, rotation: 0 }] },
+        { name: "Signature Verified Mark", category: "personal", shape: "rectangle", width: 55, height: 22, rings: 1, borderThickness: 2, ringGap: 3, borderStyle: "solid", decorativePattern: "none", color: "#2563eb", layers: [{ id: 1, text: "SIGNATURE VERIFIED", fontFamily: "Courier Prime", fontSize: 16, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] },
+        { name: "Urban Architecture Guild", category: "personal", shape: "square", width: 35, height: 35, rings: 1, borderThickness: 4, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#000000", layers: [{ id: 1, text: "URBAN GUILD", fontFamily: "Montserrat", fontSize: 14, letterSpacing: 2, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: -4, rotation: 0 }, { id: 2, text: "ARCHITECTS", fontFamily: "Courier Prime", fontSize: 10, letterSpacing: 1, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 12, rotation: 0 }] },
+        { name: "Retro Top Secret Node", category: "personal", shape: "rectangle", width: 58, height: 25, rings: 2, borderThickness: 2, ringGap: 4, borderStyle: "solid", decorativePattern: "none", color: "#ef4444", layers: [{ id: 1, text: "CLASSIFIED TOP SECRET", fontFamily: "Special Elite", fontSize: 16, letterSpacing: 3, layoutMode: "straight", radius: 0, offsetX: 0, offsetY: 0, rotation: 0 }] }
+    ];
+
+    // --- Boot System Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+        populateTemplateGrid();
+        rebuildLayersListView();
+        updateUIElementsFromState();
+        generateNoisePatternMatrix();
+        pushHistoryState();
+        
+        // Setup Interaction Listeners for the Canvas Vector Matrix
+        const canvas = document.getElementById('primary-stamp-canvas');
+        canvas.addEventListener('mousedown', canvasMouseDownHandler);
+        window.addEventListener('mousemove', canvasMouseMoveHandler);
+        window.addEventListener('mouseup', canvasMouseUpHandler);
+        
+        fitToViewport();
+        executeEngineRenderLoop();
+    });
+
+    // --- Navigation Layout Manager ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // Find click origin to apply selection highlights
+        const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.textContent.toLowerCase().includes(tabId === 'layout' ? 'geometry' : tabId === 'typography' ? 'text' : tabId === 'effects' ? 'wear' : tabId));
+        if (targetBtn) targetBtn.classList.add('active');
+        
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    // --- Dynamic Data Engine Renderer & Layout Generator ---
+    function populateTemplateGrid() {
+        const categoryFilter = document.getElementById('template-category').value;
+        const container = document.getElementById('template-container');
+        container.innerHTML = '';
+
+        TEMPLATE_LIBRARY.forEach((tmpl, index) => {
+            if (categoryFilter !== 'all' && tmpl.category !== categoryFilter) return;
+
+            const card = document.createElement('div');
+            card.className = "template-card";
+            card.onclick = () => loadTemplateFromLibrary(tmpl);
+
+            const circleThumb = document.createElement('div');
+            circleThumb.className = "template-thumb-preview";
+            circleThumb.style.borderColor = tmpl.color;
+            circleThumb.style.color = tmpl.color;
+            circleThumb.style.fontFamily = tmpl.layers[0]?.fontFamily || 'sans-serif';
+            circleThumb.innerText = tmpl.shape === 'circle' ? '◯' : '▭';
+
+            const titleLabel = document.createElement('span');
+            titleLabel.innerText = tmpl.name;
+
+            card.appendChild(circleThumb);
+            card.appendChild(titleLabel);
+            container.appendChild(card);
+        });
+    }
+
+    function loadTemplateFromLibrary(templateSource) {
+        // Perform deep copy of the static model state to isolate runtime reference links
+        stampState.shape = templateSource.shape;
+        stampState.width = templateSource.width;
+        stampState.height = templateSource.height;
+        stampState.rings = templateSource.rings;
+        stampState.borderThickness = templateSource.borderThickness;
+        stampState.ringGap = templateSource.ringGap;
+        stampState.borderStyle = templateSource.borderStyle;
+        stampState.decorativePattern = templateSource.decorativePattern;
+        stampState.color = templateSource.color;
+        
+        // Map templates cleanly while safeguarding missing parameters like rotation
+        stampState.layers = JSON.parse(JSON.stringify(templateSource.layers)).map(layer => ({
+            rotation: 0,
+            ...layer
+        }));
+        stampState.activeLayerId = stampState.layers.length > 0 ? stampState.layers[0].id : null;
+
+        updateUIElementsFromState();
+        rebuildLayersListView();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    // --- UI Control Linkage Mapping ---
+    function updateState(key, value) {
+        stampState[key] = value;
+        const feedbackValEl = document.getElementById(`val-${key}`);
+        if (feedbackValEl) feedbackValEl.innerText = value;
+        
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function updateEffect(key, value) {
+        stampState.effects[key] = value;
+        const feedbackValEl = document.getElementById(`val-fx-${key}`);
+        if (feedbackValEl) feedbackValEl.innerText = value;
+        
+        if (key === 'pattern') generateNoisePatternMatrix();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function updateDimensions() {
+        const w = parseInt(document.getElementById('input-width').value) || 40;
+        const h = parseInt(document.getElementById('input-height').value) || 40;
+        stampState.width = w;
+        stampState.height = h;
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function applySizePreset(presetId) {
+        if (presetId === 'custom') return;
+        const specs = presetId.split('-');
+        const type = specs[0];
+        const val = specs[1];
+
+        if (type === 'round') {
+            stampState.shape = 'circle';
+            stampState.width = parseInt(val);
+            stampState.height = parseInt(val);
+        } else if (type === 'rect') {
+            stampState.shape = 'rectangle';
+            stampState.width = parseInt(val.substring(0,2));
+            stampState.height = parseInt(val.substring(2,4));
+        }
+
+        updateUIElementsFromState();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function selectGlobalColor(hexString) {
+        stampState.color = hexString;
+        document.getElementById('primary-color-input').value = hexString;
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function resetToCleanVector() {
+        stampState.effects.distress = 0;
+        stampState.effects.bleed = 0;
+        stampState.effects.pressure = 100;
+        stampState.effects.rotation = 0;
+        
+        updateUIElementsFromState();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function updateUIElementsFromState() {
+        document.getElementById('shape-select').value = stampState.shape;
+        document.getElementById('input-width').value = stampState.width;
+        document.getElementById('input-height').value = stampState.height;
+        document.getElementById('slider-rings').value = stampState.rings;
+        document.getElementById('val-rings').innerText = stampState.rings;
+        document.getElementById('slider-borderThickness').value = stampState.borderThickness;
+        document.getElementById('val-borderThickness').innerText = stampState.borderThickness;
+        document.getElementById('slider-ringGap').value = stampState.ringGap;
+        document.getElementById('val-ringGap').innerText = stampState.ringGap;
+        document.getElementById('border-style').value = stampState.borderStyle;
+        document.getElementById('border-pattern').value = stampState.decorativePattern;
+        document.getElementById('primary-color-input').value = stampState.color;
+        
+        document.getElementById('slider-fx-distress').value = stampState.effects.distress;
+        document.getElementById('val-fx-distress').innerText = stampState.effects.distress;
+        document.getElementById('slider-fx-bleed').value = stampState.effects.bleed;
+        document.getElementById('val-fx-bleed').innerText = stampState.effects.bleed;
+        document.getElementById('slider-fx-pressure').value = stampState.effects.pressure;
+        document.getElementById('val-fx-pressure').innerText = stampState.effects.pressure;
+        document.getElementById('slider-fx-rotation').value = stampState.effects.rotation;
+        document.getElementById('val-fx-rotation').innerText = stampState.effects.rotation;
+        document.getElementById('fx-pattern').value = stampState.effects.pattern;
+    }
+
+    // --- Typography Layer Management Stack ---
+    function rebuildLayersListView() {
+        const container = document.getElementById('layers-container');
+        container.innerHTML = '';
+
+        stampState.layers.forEach(layer => {
+            const item = document.createElement('div');
+            item.className = `layer-item ${layer.id === stampState.activeLayerId ? 'active' : ''}`;
+            item.onclick = () => selectActiveLayer(layer.id);
+
+            const label = document.createElement('span');
+            label.innerText = `"${layer.text.substring(0,18) || 'Empty Layer'}" [${layer.layoutMode}]`;
+
+            const actions = document.createElement('div');
+            actions.className = "layer-item-actions";
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = "layer-btn";
+            delBtn.innerHTML = "🗑️";
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteLayer(layer.id); };
+
+            actions.appendChild(delBtn);
+            item.appendChild(label);
+            item.appendChild(actions);
+            container.appendChild(item);
+        });
+
+        loadActiveLayerIntoInspector();
+    }
+
+    function selectActiveLayer(layerId) {
+        stampState.activeLayerId = layerId;
+        rebuildLayersListView();
+    }
+
+    function addNewTextLayer() {
+        const newId = stampState.layers.length > 0 ? Math.max(...stampState.layers.map(l => l.id)) + 1 : 1;
+        const newLayer = {
+            id: newId,
+            text: "NEW INK LINE",
+            fontFamily: "Special Elite",
+            fontSize: 14,
+            letterSpacing: 2,
+            layoutMode: "straight",
+            radius: 100,
+            offsetX: 0,
+            offsetY: 0,
+            rotation: 0
+        };
+        stampState.layers.push(newLayer);
+        stampState.activeLayerId = newId;
+        rebuildLayersListView();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function deleteLayer(layerId) {
+        stampState.layers = stampState.layers.filter(l => l.id !== layerId);
+        if (stampState.activeLayerId === layerId) {
+            stampState.activeLayerId = stampState.layers.length > 0 ? stampState.layers[0].id : null;
+        }
+        rebuildLayersListView();
+        pushHistoryState();
+        executeEngineRenderLoop();
+    }
+
+    function loadActiveLayerIntoInspector() {
+        const panel = document.getElementById('text-editor-panel');
+        const activeLayer = stampState.layers.find(l => l.id === stampState.activeLayerId);
+
+        if (!activeLayer) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.style.display = 'block';
+        document.getElementById('layer-text-string').value = activeLayer.text;
+        document.getElementById('layer-font-family').value = activeLayer.fontFamily;
+        document.getElementById('layer-font-size').value = activeLayer.fontSize;
+        document.getElementById('layer-letter-spacing').value = activeLayer.letterSpacing;
+        document.getElementById('layer-layout-mode').value = activeLayer.layoutMode;
+        document.getElementById('slider-layer-radius').value = activeLayer.radius;
+        document.getElementById('val-layer-radius').innerText = activeLayer.radius;
+        
+        // Render text element rotation safely
+        const rotVal = activeLayer.rotation !== undefined ? activeLayer.rotation : 0;
+        document.getElementById('slider-layer-rotation').value = rotVal;
+        document.getElementById('val-layer-rotation').innerText = rotVal;
+
+        document.getElementById('layer-offset-x').value = activeLayer.offsetX;
+        document.getElementById('layer-offset-y').value = activeLayer.offsetY;
+
+        toggleCurveControls(activeLayer.layoutMode);
+    }
+
+    function toggleCurveControls(mode) {
+        const container = document.getElementById('curve-controls-container');
+        container.style.display = mode.startsWith('arc') ? 'block' : 'none';
+    }
+
+    function updateActiveLayer(propertyKey, value) {
+        const activeLayer = stampState.layers.find(l => l.id === stampState.activeLayerId);
+        if (!activeLayer) return;
+
+        activeLayer[propertyKey] = value;
+        if (propertyKey === 'radius') {
+            document.getElementById('val-layer-radius').innerText = value;
+        } else if (propertyKey === 'rotation') {
+            document.getElementById('val-layer-rotation').innerText = value;
+        }
+        executeEngineRenderLoop();
+    }
+
+    // --- Procedural Texture Erosion Matrix Synthesizer ---
+    function generateNoisePatternMatrix() {
+        cachedNoisePatternCanvas = document.createElement('canvas');
+        cachedNoisePatternCanvas.width = 512;
+        cachedNoisePatternCanvas.height = 512;
+        const ctx = cachedNoisePatternCanvas.getContext('2d');
+        const imgData = ctx.createImageData(512, 512);
+        const data = imgData.data;
+        const type = stampState.effects.pattern;
+
+        for (let i = 0; i < data.length; i += 4) {
+            let noiseVal = 0;
+            const x = (i / 4) % 512;
+            const y = Math.floor((i / 4) / 512);
+
+            if (type === 'subtle') {
+                noiseVal = Math.random() > 0.94 ? 255 : 0;
+            } else if (type === 'heavy') {
+                noiseVal = Math.random() > 0.82 ? Math.floor(Math.random() * 180) + 75 : 0;
+            } else if (type === 'cracked') {
+                // Procedural Sine Vector Distortion Lines
+                const structuralLine = Math.sin(x * 0.05 + y * 0.02) * Math.cos(y * 0.04 - x * 0.01);
+                noiseVal = structuralLine > 0.72 ? 240 : (Math.random() > 0.96 ? 200 : 0);
+            }
+
+            data[i] = noiseVal;
+            data[i+1] = noiseVal;
+            data[i+2] = noiseVal;
+            data[i+3] = noiseVal; // Absolute Dynamic Mask Array
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+    }
+
+    // --- Main Canvas Graphics Render Engine Pipeline ---
+    function executeEngineRenderLoop() {
+        const canvas = document.getElementById('primary-stamp-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Handle high DPI crisp vector calculations on standard coordinate models
+        ctx.restore();
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Core Center Stage Coordinate Calculation Metrics
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Convert millimeter metrics into virtual spatial render pixels (Scale Factor ~ 8.5px/mm)
+        const scalePX = 8.5;
+        const targetWidthPX = stampState.width * scalePX;
+        const targetHeightPX = stampState.height * scalePX;
+
+        // Initialize An Offscreen Buffering Surface to Composite Filters Cleanly
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        const oCtx = offscreenCanvas.getContext('2d');
+
+        // Apply Human Element Rotational Deviation Transformations
+        oCtx.translate(centerX, centerY);
+        oCtx.rotate((stampState.effects.rotation * Math.PI) / 180);
+        oCtx.translate(-centerX, -centerY);
+
+        // Setup Chromatic Vector Profiles
+        oCtx.strokeStyle = stampState.color;
+        oCtx.fillStyle = stampState.color;
+        oCtx.lineWidth = stampState.borderThickness;
+
+        if (stampState.borderStyle === 'dashed') oCtx.setLineDash([12, 6]);
+        else if (stampState.borderStyle === 'dotted') oCtx.setLineDash([3, 6]);
+        else oCtx.setLineDash([]);
+
+        // 1. Draw Geometric Frame Contours
+        for (let r = 0; r < stampState.rings; r++) {
+            const structuralOffset = r * stampState.ringGap * 2;
+            const currentW = targetWidthPX - structuralOffset;
+            const currentH = targetHeightPX - structuralOffset;
+
+            if (currentW <= 0 || currentH <= 0) break;
+
+            oCtx.beginPath();
+            if (stampState.shape === 'circle') {
+                oCtx.arc(centerX, centerY, currentW / 2, 0, Math.PI * 2);
+            } else if (stampState.shape === 'oval') {
+                oCtx.ellipse(centerX, centerY, currentW / 2, currentH / 2, 0, 0, Math.PI * 2);
+            } else if (stampState.shape === 'rectangle' || stampState.shape === 'square') {
+                oCtx.rect(centerX - currentW/2, centerY - currentH/2, currentW, currentH);
+            } else if (stampState.shape === 'rounded_rect') {
+                oCtx.roundRect(centerX - currentW/2, centerY - currentH/2, currentW, currentH, 12);
+            } else if (stampState.shape === 'triangle') {
+                oCtx.moveTo(centerX, centerY - currentH/2);
+                oCtx.lineTo(centerX + currentW/2, centerY + currentH/2);
+                oCtx.lineTo(centerX - currentW/2, centerY + currentH/2);
+                oCtx.closePath();
+            }
+            oCtx.stroke();
+        }
+
+        // 2. Draw Track Ornament Systems
+        if (stampState.decorativePattern !== 'none' && stampState.shape === 'circle') {
+            drawTrackOrnaments(oCtx, centerX, centerY, (targetWidthPX / 2) - (stampState.ringGap * 1.2));
+        }
+
+        // 3. Draw Typography Vector Layer Trees with Custom Rotational Support
+        stampState.layers.forEach(layer => {
+            oCtx.font = `${layer.fontSize}px "${layer.fontFamily}"`;
+            oCtx.textAlign = 'center';
+            oCtx.textBaseline = 'middle';
+
+            const localX = centerX + layer.offsetX;
+            const localY = centerY + layer.offsetY;
+            const rotDeg = layer.rotation !== undefined ? layer.rotation : 0;
+
+            if (layer.layoutMode === 'straight') {
+                oCtx.save();
+                oCtx.translate(localX, localY);
+                oCtx.rotate((rotDeg * Math.PI) / 180);
+                drawTrackSpacedText(oCtx, layer.text, 0, 0, layer.letterSpacing);
+                oCtx.restore();
+            } else {
+                // Curved Arc Interpolation
+                const isTopArc = layer.layoutMode === 'arc-top';
+                drawArcTrackSpacedText(oCtx, layer.text, centerX, centerY, layer.radius, isTopArc, layer.letterSpacing, layer.offsetX, layer.offsetY, rotDeg);
+            }
+        });
+
+        // 4. Run Offscreen High-Performance Compositing Engine (Destructive Ink Blur/Erosion Filters)
+        if (stampState.effects.distress > 0 || stampState.effects.bleed > 0) {
+            // Apply Ink Fluid Diffusion Filters via Canvas Stack Blur Emulation
+            if (stampState.effects.bleed > 0) {
+                oCtx.filter = `blur(${stampState.effects.bleed}px)`;
+                oCtx.drawImage(offscreenCanvas, 0, 0);
+                oCtx.filter = 'none';
+            }
+
+            // Apply Micro-Texture Masking Profiles to simulate physical rubber stamp wear
+            if (stampState.effects.distress > 0 && cachedNoisePatternCanvas) {
+                oCtx.save();
+                oCtx.globalCompositeOperation = 'destination-out';
+                oCtx.globalAlpha = stampState.effects.distress / 100;
+                
+                // Texture Tiling Matrix
+                for (let xW = 0; xW < canvas.width; xW += 512) {
+                    for (let yH = 0; yH < canvas.height; yH += 512) {
+                        oCtx.drawImage(cachedNoisePatternCanvas, xW, yH);
+                    }
+                }
+                oCtx.restore();
+            }
+        }
+
+        // Apply Applied Pressure Densities
+        ctx.save();
+        ctx.globalAlpha = stampState.effects.pressure / 100;
+        ctx.drawImage(offscreenCanvas, 0, 0);
+        ctx.restore();
+
+        // 5. Draw Alignment Overlay Safe Guidelines
+        if (stampState.showGuides) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            
+            // Draw Center Axis Crosshairs
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0); ctx.lineTo(centerX, canvas.height);
+            ctx.moveTo(0, centerY); ctx.lineTo(canvas.width, centerY);
+            ctx.stroke();
+
+            // Draw Boundary Margin Rings
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, targetWidthPX / 2, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // --- Dynamic Multi-Byte Grapheme Split Handler ---
+    function getGraphemes(text) {
+        if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+            const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            return Array.from(segmenter.segment(text)).map(s => s.segment);
+        }
+        return text.split('');
+    }
+
+    // --- Advanced Tracking Space Typographic Core Functions ---
+    function drawTrackSpacedText(ctx, textString, targetX, targetY, pixelSpacing) {
+        // Native High-Precision Browser Letter-Spacing (Guarantees complex Bengali conjunct structures render correctly)
+        if (typeof ctx.letterSpacing !== 'undefined') {
+            const originalSpacing = ctx.letterSpacing;
+            ctx.letterSpacing = `${pixelSpacing}px`;
+            ctx.fillText(textString, targetX, targetY);
+            ctx.letterSpacing = originalSpacing;
+            return;
+        }
+
+        // Grapheme-Aware Layout Fallback
+        const characters = getGraphemes(textString);
+        let totalWidth = 0;
+        
+        characters.forEach(char => {
+            totalWidth += ctx.measureText(char).width + pixelSpacing;
+        });
+        totalWidth -= pixelSpacing; // Strip trailing space
+
+        let trackingCursorX = targetX - (totalWidth / 2);
+        characters.forEach(char => {
+            const charW = ctx.measureText(char).width;
+            ctx.fillText(char, trackingCursorX + (charW / 2), targetY);
+            trackingCursorX += charW + pixelSpacing;
+        });
+    }
+
+    function drawArcTrackSpacedText(ctx, textString, cx, cy, radius, isTopArc, trackingPixelGap, offX, offY, rotationDegrees) {
+        ctx.save();
+        // Translate to the center of the arc + offset coordinates
+        ctx.translate(cx + offX, cy + offY);
+        // Apply the overall text arc element rotation offset
+        ctx.rotate((rotationDegrees * Math.PI) / 180);
+
+        const chars = getGraphemes(textString); // Clean grapheme arrays to safeguard complex script ligatures
+        const charAngles = chars.map(char => {
+            const width = ctx.measureText(char).width;
+            // Arc Linear Dimension Equation: Angle = Width / Radius
+            return width / radius;
+        });
+
+        const totalArcAngle = charAngles.reduce((a, b) => a + b, 0) + (chars.length - 1) * (trackingPixelGap / radius);
+        let currentAngleArc = isTopArc ? (-Math.PI / 2) - (totalArcAngle / 2) : (Math.PI / 2) - (totalArcAngle / 2);
+
+        chars.forEach((char, i) => {
+            const nativeAngle = charAngles[i];
+            currentAngleArc += nativeAngle / 2;
+
+            ctx.save();
+            ctx.rotate(currentAngleArc);
+            
+            // Orientation Vector Flip Model for Text Along Bottom Arcs
+            if (!isTopArc) {
+                ctx.translate(0, radius);
+                ctx.rotate(Math.PI);
+                ctx.fillText(char, 0, 0);
+            } else {
+                ctx.translate(0, -radius);
+                ctx.fillText(char, 0, 0);
+            }
+            
+            ctx.restore();
+            currentAngleArc += (nativeAngle / 2) + (trackingPixelGap / radius);
+        });
+
+        ctx.restore();
+    }
+
+    function drawTrackOrnaments(ctx, cx, cy, radius) {
+        ctx.save();
+        const assetCount = 12;
+        ctx.fillStyle = stampState.color;
+
+        for (let i = 0; i < assetCount; i++) {
+            const targetTheta = (i * Math.PI * 2) / assetCount;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(targetTheta);
+            ctx.translate(0, -radius);
+
+            if (stampState.decorativePattern === 'stars') {
+                drawVectorStarShape(ctx, 0, 0, 5, 5, 2.5);
+            } else if (stampState.decorativePattern === 'dots') {
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    function drawVectorStarShape(ctx, cx, cy, points, outerRadius, innerRadius) {
+        let rotationAngle = Math.PI / 2 * 3;
+        let stepAngle = Math.PI / points;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        
+        for (let i = 0; i < points; i++) {
+            let x = cx + Math.cos(rotationAngle) * outerRadius;
+            let y = cy + Math.sin(rotationAngle) * outerRadius;
+            ctx.lineTo(x, y);
+            rotationAngle += stepAngle;
+
+            x = cx + Math.cos(rotationAngle) * innerRadius;
+            let y2 = cy + Math.sin(rotationAngle) * innerRadius;
+            ctx.lineTo(x, y2);
+            rotationAngle += stepAngle;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // --- Interactive Direct Canvas Object Interaction Engine ---
+    function canvasMouseDownHandler(e) {
+        const canvas = document.getElementById('primary-stamp-canvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Map standard coordinate bounds onto high resolution matrices
+        const clientX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        const activeLayer = stampState.layers.find(l => l.id === stampState.activeLayerId);
+        if (!activeLayer) return;
+
+        isDraggingElement = true;
+        initialDragMouseX = clientX;
+        initialDragMouseY = clientY;
+        dragLayerInitialOffsetX = activeLayer.offsetX;
+        dragLayerInitialOffsetY = activeLayer.offsetY;
+    }
+
+    function canvasMouseMoveHandler(e) {
+        if (!isDraggingElement) return;
+        const canvas = document.getElementById('primary-stamp-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        const activeLayer = stampState.layers.find(l => l.id === stampState.activeLayerId);
+        if (!activeLayer) return;
+
+        const deltaX = clientX - initialDragMouseX;
+        const deltaY = clientY - initialDragMouseY;
+
+        activeLayer.offsetX = Math.round(dragLayerInitialOffsetX + deltaX);
+        activeLayer.offsetY = Math.round(dragLayerInitialOffsetY + deltaY);
+
+        document.getElementById('layer-offset-x').value = activeLayer.offsetX;
+        document.getElementById('layer-offset-y').value = activeLayer.offsetY;
+
+        executeEngineRenderLoop();
+    }
+
+    // Key up hook sets standard tracking points
+    function canvasMouseUpHandler() {
+        if (isDraggingElement) {
+            isDraggingElement = false;
+            pushHistoryState();
+        }
+    }
+
+    // --- Display Configuration Managers ---
+    function toggleViewportGrid() {
+        stampState.showGrid = !stampState.showGrid;
+        const stateStyle = stampState.showGrid ? 'block' : 'none';
+        document.getElementById('canvas-grid-underlay').style.display = stateStyle;
+        document.getElementById('canvas-grid-underlay-heavy').style.display = stateStyle;
+        document.getElementById('grid-toggle-btn').classList.toggle('active', stampState.showGrid);
+    }
+
+    // Toggle alignment guides off/on
+    function toggleViewportGuides() {
+        stampState.showGuides = !stampState.showGuides;
+        document.getElementById('guide-toggle-btn').classList.toggle('active', stampState.showGuides);
+        executeEngineRenderLoop();
+    }
+
+    function adjustZoom(stepValue) {
+        stampState.zoom = Math.max(50, Math.min(300, stampState.zoom + stepValue));
+        document.getElementById('zoom-factor-display').innerText = `${stampState.zoom}%`;
+        document.getElementById('primary-stamp-canvas').style.transform = `scale(${stampState.zoom / 100})`;
+    }
+
+    function fitToViewport() {
+        stampState.zoom = 100;
+        document.getElementById('zoom-factor-display').innerText = `100%`;
+        document.getElementById('primary-stamp-canvas').style.transform = `scale(1)`;
+    }
+
+    // --- State History Core Architecture ---
+    function pushHistoryState() {
+        // Drop alternate forward history branches if committing modifications post-undo operations
+        if (historyIndex < historyStack.length - 1) {
+            historyStack = historyStack.slice(0, historyIndex + 1);
+        }
+        
+        const stringifiedState = JSON.stringify({
+            shape: stampState.shape, width: stampState.width, height: stampState.height,
+            color: stampState.color, rings: stampState.rings, borderThickness: stampState.borderThickness,
+            ringGap: stampState.ringGap, borderStyle: stampState.borderStyle,
+            decorativePattern: stampState.decorativePattern, effects: stampState.effects,
+            layers: stampState.layers, activeLayerId: stampState.activeLayerId
+        });
+
+        // Throttle memory footprints
+        if (historyStack.length === 0 || historyStack[historyStack.length - 1] !== stringifiedState) {
+            historyStack.push(stringifiedState);
+            if (historyStack.length > 30) historyStack.shift();
+            historyIndex = historyStack.length - 1;
+        }
+    }
+
+    function triggerUndo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            applyStoredHistoryFrame(historyStack[historyIndex]);
+        }
+    }
+
+    function triggerRedo() {
+        if (historyIndex < historyStack.length - 1) {
+            historyIndex++;
+            applyStoredHistoryFrame(historyStack[historyIndex]);
+        }
+    }
+
+    function applyStoredHistoryFrame(historyFrameJSON) {
+        const parsedFrame = JSON.parse(historyFrameJSON);
+        Object.assign(stampState, parsedFrame);
+        updateUIElementsFromState();
+        rebuildLayersListView();
+        generateNoisePatternMatrix();
+        executeEngineRenderLoop();
+    }
+
+    // --- High Resolution Asset Export Pipelines ---
+    function exportRaster(formatExtension) {
+        // Toggle system alignment guides off before rasterization passes
+        const cachedGuideState = stampState.showGuides;
+        stampState.showGuides = false;
+        executeEngineRenderLoop();
+
+        const canvas = document.getElementById('primary-stamp-canvas');
+        const processingURL = formatExtension === 'jpeg' 
+            ? canvas.toDataURL('image/jpeg', 0.95) 
+            : canvas.toDataURL('image/png');
+
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `stamp_production_export.${formatExtension}`;
+        downloadLink.href = processingURL;
+        downloadLink.click();
+
+        stampState.showGuides = cachedGuideState;
+        executeEngineRenderLoop();
+    }
+
+    function exportPDF() {
+        const cachedGuideState = stampState.showGuides;
+        stampState.showGuides = false;
+        executeEngineRenderLoop();
+
+        const canvas = document.getElementById('primary-stamp-canvas');
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Load production profile utilizing jsPDF API
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        // Center printable object exactly on standard document fields
+        pdf.addImage(imgData, 'PNG', 10, 10, stampState.width, stampState.height);
+        pdf.save('printed_stamp_proof.pdf');
+
+        stampState.showGuides = cachedGuideState;
+        executeEngineRenderLoop();
+    }
+
+    function exportSVG() {
+        const svgW = stampState.width * 8.5;
+        const svgH = stampState.height * 8.5;
+        const cx = svgW / 2;
+        const cy = svgH / 2;
+
+        let strokeDashAttr = "";
+        if (stampState.borderStyle === 'dashed') strokeDashAttr = 'stroke-dasharray="12,6"';
+        else if (stampState.borderStyle === 'dotted') strokeDashAttr = 'stroke-dasharray="3,6"';
+
+        // Initialize structured XML content
+        let svgTreeString = `<svg xmlns="http://www.w3.org/2000/svg" width="${stampState.width}mm" height="${stampState.height}mm" viewBox="0 0 ${svgW} ${svgH}">
+<defs>
+    <filter id="distress-filter">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="${stampState.effects.distress * 0.15}" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+</defs>
+<g filter="url(#distress-filter)" transform="rotate(${stampState.effects.rotation} ${cx} ${cy})" opacity="${stampState.effects.pressure / 100}">`;
+
+        // Append concentric profile configurations
+        for (let r = 0; r < stampState.rings; r++) {
+            const offset = r * stampState.ringGap * 2;
+            const w = svgW - offset;
+            const h = svgH - offset;
+            if (w <= 0 || h <= 0) break;
+
+            if (stampState.shape === 'circle') {
+                svgTreeString += `\n  <circle cx="${cx}" cy="${cy}" r="${w/2}" fill="none" stroke="${stampState.color}" stroke-width="${stampState.borderThickness}" ${strokeDashAttr} />`;
+            } else if (stampState.shape === 'oval') {
+                svgTreeString += `\n  <ellipse cx="${cx}" cy="${cy}" rx="${w/2}" ry="${h/2}" fill="none" stroke="${stampState.color}" stroke-width="${stampState.borderThickness}" ${strokeDashAttr} />`;
+            } else if (stampState.shape === 'rectangle' || stampState.shape === 'square') {
+                svgTreeString += `\n  <rect x="${cx - w/2}" y="${cy - h/2}" width="${w}" height="${h}" fill="none" stroke="${stampState.color}" stroke-width="${stampState.borderThickness}" ${strokeDashAttr} />`;
+            } else if (stampState.shape === 'rounded_rect') {
+                svgTreeString += `\n  <rect x="${cx - w/2}" y="${cy - h/2}" width="${w}" height="${h}" rx="12" fill="none" stroke="${stampState.color}" stroke-width="${stampState.borderThickness}" ${strokeDashAttr} />`;
+            }
+        }
+
+        // Process typographic elements using pure markup translations
+        stampState.layers.forEach((layer) => {
+            const fontStyles = `font-family='${layer.fontFamily}' font-size='${layer.fontSize}' fill='${stampState.color}' text-anchor='middle'`;
+            const rot = layer.rotation || 0;
+            const rotAttr = rot !== 0 ? ` transform="rotate(${rot} ${cx + layer.offsetX} ${cy + layer.offsetY})"` : "";
+
+            if (layer.layoutMode === 'straight') {
+                svgTreeString += `\n  <text x="${cx + layer.offsetX}" y="${cy + layer.offsetY}" ${fontStyles}${rotAttr}>${layer.text}</text>`;
+            } else {
+                // Generate path bindings for curved elements
+                const isTop = layer.layoutMode === 'arc-top';
+                const r = layer.radius;
+                const pathData = isTop 
+                    ? `M ${cx - r + layer.offsetX} ${cy + layer.offsetY} A ${r} ${r} 0 0 1 ${cx + r + layer.offsetX} ${cy + layer.offsetY}`
+                    : `M ${cx + r + layer.offsetX} ${cy + layer.offsetY} A ${r} ${r} 0 0 1 ${cx - r + layer.offsetX} ${cy + layer.offsetY}`;
+                
+                const pathId = `path-layer-${layer.id}`;
+                svgTreeString += `\n  <g${rotAttr}>`;
+                svgTreeString += `\n    <path id="${pathId}" d="${pathData}" fill="none" />`;
+                svgTreeString += `\n    <text ${fontStyles}><textPath href="#${pathId}" startOffset="50%">${layer.text}</textPath></text>`;
+                svgTreeString += `\n  </g>`;
+            }
+        });
+
+        svgTreeString += `\n</g>\n</svg>`;
+
+        // Prompt client system download procedures
+        const blob = new Blob([svgTreeString], { type: "image/svg+xml;charset=utf-8" });
+        const downloadLink = document.createElement('a');
+        downloadLink.download = "vector_stamp_blueprint.svg";
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.click();
+    }
+</script>
+</body>
+</html>
